@@ -26,6 +26,8 @@
   "dependencies": {
     "async": "^1.5.2",
     "material-colors": "^1.0.0",
-    "svg2png": "^2.1.0"
+    "mkdirp": "^0.5.1",
+    "svg2png": "^2.1.0",
+    "utils": "^0.3.1"
   }
 }

@@ -1,118 +1,116 @@
 // Require dependencies
 var fs = require('fs');
+var mkdirp = require('mkdirp');
+var util = require('util');
 var async = require('async');
 var svg2png = require('svg2png');
 var config = require('./config');
 var colors = require('material-colors');
+var getDirName = require("path").dirname;
+
 
 // Material Design color variables
 var colorKeys = Object.keys(colors), currentColorIndex = 0;
 
 // Randomize color keys
-colorKeys.sort(function() {
-  return .5 - Math.random();
+colorKeys.sort(function () {
+    return .5 - Math.random();
 });
 
 // Load base icon SVG file as UTF-8 string
 var baseSVG = fs.readFileSync(__dirname + '/' + config.src.svg.basePath, {encoding: 'utf8'});
 
+async.forEach = function (o, cb) {
+    var counter = 0,
+        keys = Object.keys(o),
+        len = keys.length;
+    var next = function () {
+        if (counter < len) cb(o[keys[counter++]], next);
+    };
+    next();
+};
+
 // Main generator function
-exports.generateIcons = function(cb) {
+exports.generateIcons = function (callback) {
     // Convert letters to char array
     var letters = config.generator.characters.split('');
-    
-    // Generate each letter icon "synchronously"
-    async.eachSeries(letters, function(letter, cbAsync) {
-        // Log current letter
-        console.log('Generating icons for letter: ' + letter);
-        
-        // Generate an icon for the current letter
-        exports.generateLetterIcon(letter, function(err) {
-            // Handle errors
+    return async.forEach(Object.keys(colors), function (color, callback) {
+        console.log("Color: " + color);
+        return async.eachSeries(letters, function (letter, callback) {
+            console.log('Generating icons for letter: ' + letter + ' and color ' + color);
+            return exports.generateLetterIcon(letter, color, function (err) {
+                return callback(err);
+            });
+        }, function done(err) {
             if (err) {
-                return cbAsync(err);
+                console.error(util.inspect(err));
             }
-            
-            // Continue to next letter
-            return cbAsync();
+            callback(err);
         });
-    }, function done(err) {  
-        // Handle errors
+    }, function (err) {
         if (err) {
-            return cb(err);
+            console.error(util.inspect(err));
         }
-        
-        // Call parent callback
-        cb();
+        return callback(err)
     });
-}
+};
 
 // Generates icons for a single letter
-exports.generateLetterIcon = function(letter, cb) {
+exports.generateLetterIcon = function (letter, color, callback) {
     // Derive SVG from base letter SVG
     var letterSVG = baseSVG;
-    
+
     // Get a random Material Design color
-    var color = this.getRandomLetterColor();
-    
+    var colorCode = this.getColorCode(color);
+
     // Substitude placeholders for color and letter
-    letterSVG = letterSVG.replace('{c}', color);
+    letterSVG = letterSVG.replace('{c}', colorCode);
     letterSVG = letterSVG.replace('{x}', letter);
-    
+
     // Get filesystem-friendly file name for letter
     var fileName = this.getIconFilename(letter);
-    
+
     // Define SVG/PNG output path
-    var outputSVGPath = __dirname + '/' + config.dist.svg.outputPath + fileName + '.svg';
-    var outputPNGPath = __dirname + '/' + config.dist.png.outputPath + fileName + '.png';
-    
-    // Export the letter as an SVG file
-    fs.writeFileSync(outputSVGPath, letterSVG);
-    
-    // Convert the SVG file into a PNG file using svg2png
-    svg2png(outputSVGPath, outputPNGPath, config.dist.png.dimensions, function(err) {
-        // Report error
+    var outputSVGPath = __dirname + '/' + config.dist.svg.outputPath + color + '/' + fileName + '.svg';
+    var outputPNGPath = __dirname + '/' + config.dist.png.outputPath + color + '/' + fileName + '.png';
+
+    console.log(outputSVGPath);
+    console.log(outputPNGPath);
+
+    return mkdirp(getDirName(outputSVGPath), function (err) {
         if (err) {
-            return cb(err);
+            return callback(err)
         }
-        
-        // Success!
-        cb();
+        // Export the letter as an SVG file
+        fs.writeFileSync(outputSVGPath, letterSVG);
+
+        // Convert the SVG file into a PNG file using svg2png
+        svg2png(outputSVGPath, outputPNGPath, config.dist.png.dimensions, function (err) {
+            // Report error
+            if (err) {
+                return callback(err);
+            }
+
+            // Success!
+            callback();
+        });
     });
-}
+};
 
 // Returns a filesystem-friendly filename (without extension)
-this.getIconFilename = function(letter) {
+this.getIconFilename = function (letter) {
     // Not alphanumeric?
     if (!letter.match(/^[0-9a-zA-Z]$/)) {
         // Return charcode instead
         return 'ASCII-' + letter.charCodeAt(0);
     }
-    
+
     // We're good
     return letter;
-}
+};
 
 // Returns the next Material Design color for the icon background
-this.getRandomLetterColor = function() {
-    // Reset index if we're at the end of the array
-    if (currentColorIndex >= colorKeys.length) {
-        currentColorIndex = 0;
-    }
-    
-    // Get current color and increment index for next time
-    var currentColorKey = colorKeys[currentColorIndex++];
-    
-    // Return most satured color hex (a700 or 900)
-    var color = colors[currentColorKey]['a700'] || colors[currentColorKey]['900'];
-    
-    // Invalid color saturation value?
-    if (color == undefined) {
-        // No saturation for black or white,
-        // so return the next random color instead
-        return this.getRandomLetterColor();
-    }
-    
-    // Return current color hex
-    return color;
-}
+this.getColorCode = function (color) {
+    // Return most satured color hex (500)
+    return colors[color]['500'];
+};

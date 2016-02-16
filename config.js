@@ -2,7 +2,7 @@
 module.exports = {
     generator: {
         // Characters to generate, as string
-        characters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        characters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     },
     src: {
         svg: {
@@ -13,7 +13,7 @@ module.exports = {
     dist: {
         svg: {
             // SVG icon output directory
-            outputPath: 'dist/svg/',
+            outputPath: 'dist/svg/'
         },
         png: {
             // PNG icon output directory
